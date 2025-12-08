@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Together - Sync Room</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: white;
+            --text-color: #333;
+            --accent: #007bff;
+        }
+
+        /* --- THEMES --- */
+        body.theme-hearts { --bg-color: #ffe6e6; --accent: #ff4d4d; background-image: url('data:image/svg+xml;utf8,<svg width="20" height="20" xmlns="http://www.w3.org/2000/svg"><text x="5" y="15" font-size="10">❤️</text></svg>'); }
+        body.theme-roses { --bg-color: #fff0f5; --accent: #d63384; background-image: radial-gradient(#ffccd5 1px, transparent 1px); background-size: 20px 20px; }
+        body.theme-teddies { --bg-color: #fcf3cf; --accent: #d35400; font-family: 'Comic Sans MS', cursive; }
+        body.theme-ocean { --bg-color: #e0f7fa; --accent: #00bcd4; }
+        body.theme-midnight { --bg-color: #1a1a1a; --card-bg: #2d2d2d; --text-color: #e0e0e0; --accent: #bb86fc; }
+
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; display: flex; flex-direction: column; height: 100vh; transition: all 0.5s ease; }
+        
+        /* SPLASH SCREEN */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;
+            backdrop-filter: blur(5px);
+        }
+        #enter-btn {
+            padding: 15px 40px; font-size: 1.5rem; background: var(--accent); color: white;
+            border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 0 20px rgba(255,255,255,0.3);
+            transition: transform 0.2s; margin-top: 20px;
+        }
+        #enter-btn:hover { transform: scale(1.05); }
+
+        /* HEADER */
+        header { padding: 10px 20px; background: var(--card-bg); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .room-title { font-size: 1.2rem; font-weight: bold; border: none; background: transparent; color: var(--text-color); width: 200px; }
+        
+        /* MAIN LAYOUT */
+        #main-container { display: flex; flex: 1; padding: 10px; gap: 10px; overflow: hidden; flex-direction: column; }
+        
+        /* YOUTUBE SECTION */
+        #yt-container { display: none; width: 100%; aspect-ratio: 16/9; background: black; border-radius: 10px; overflow: hidden; position: relative; flex-shrink: 0; }
+        iframe { width: 100%; height: 100%; border: none; }
+
+        /* VIDEO CALL GRID */
+        #video-grid { display: flex; gap: 10px; justify-content: center; height: 100%; transition: height 0.3s; }
+        .vid-wrapper { position: relative; background: #000; border-radius: 10px; overflow: hidden; flex: 1; max-width: 600px; display: flex; align-items: center; justify-content: center; }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); /* Mirror local video */ }
+        #remote-video { transform: scaleX(1); /* Don't mirror partner */ }
+        
+        .minimized video { display: none; }
+        .minimized { flex: 0 0 50px; height: 50px; border-radius: 50%; border: 2px solid var(--accent); background: var(--card-bg); }
+        .minimized .name-tag { display: none; }
+        
+        /* OVERLAYS */
+        .name-tag { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .vid-controls { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; }
+        .btn-icon { background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-icon:hover { background: var(--accent); }
+        .btn-icon.off { background: #ff4444; }
+
+        /* LOADING SPINNER FOR CAMERA SWITCH */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--accent); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* CHAT & CONTROLS */
+        #bottom-panel { display: flex; gap: 10px; height: 30%; min-height: 200px; }
+        
+        #control-box { flex: 1; background: var(--card-bg); padding: 15px; border-radius: 10px; overflow-y: auto; }
+        #chat-box-container { flex: 2; background: var(--card-bg); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
+        
+        #messages { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 5px; }
+        .msg { padding: 8px 12px; border-radius: 15px; max-width: 80%; word-wrap: break-word; font-size: 0.9rem; }
+        .msg.local { background: var(--accent); color: white; align-self: flex-end; }
+        .msg.remote { background: #e4e6eb; color: #333; align-self: flex-start; }
+        .system-msg { align-self: center; font-size: 0.75rem; color: #888; margin: 5px 0; }
+        
+        #chat-input-area { display: flex; padding: 10px; border-top: 1px solid #eee; }
+        input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 20px; outline: none; background: var(--bg-color); color: var(--text-color); }
+        button.send-btn { margin-left: 10px; background: var(--accent); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; }
+
+        /* UTILS */
+        .hidden { display: none !important; }
+        select, button.action-btn { padding: 8px; border-radius: 5px; border: 1px solid #ddd; cursor: pointer; margin-bottom: 5px; width: 100%; }
+        button.action-btn { background: var(--accent); color: white; border: none; }
+        
+        /* YOUTUBE ACTIVE STATE */
+        .yt-active #video-grid { height: 120px; }
+        .yt-active #bottom-panel { height: 200px; }
+    </style>
+</head>
+<body class="theme-hearts">
+    
+    <div id="splash-screen">
+        <h1>❤️ Private Space</h1>
+        <p>Click to enter your secure room</p>
+        <button id="enter-btn" onclick="enterApp()">Enter Room</button>
+    </div>
+
+    <header>
+        <input type="text" id="room-name-input" class="room-title" value="Our Private Room" onchange="syncRoomName()">
+        <div style="font-size: 0.8rem; color: #777;">ID: <span id="my-id">...</span></div>
+    </header>
+
+    <div id="main-container">
+        <div id="yt-container">
+            <div id="player"></div>
+        </div>
+
+        <div id="video-grid">
+            <div class="vid-wrapper" id="local-wrapper">
+                <video id="local-video" autoplay muted playsinline></video>
+                <div class="loader" id="cam-loader"></div>
+                <div class="name-tag" id="local-name-display">Me</div>
+                <div class="vid-controls">
+                    <button class="btn-icon" onclick="switchCamera(this)" title="Flip Camera"><i class="fas fa-sync-alt"></i></button>
+                    <button class="btn-icon" onclick="toggleMuteSelf(this)"><i class="fas fa-microphone"></i></button>
+                    <button class="btn-icon" onclick="toggleCamSelf(this)"><i class="fas fa-video"></i></button>
+                    <button class="btn-icon" onclick="toggleMinimize('local-wrapper')"><i class="fas fa-compress"></i></button>
+                </div>
+            </div>
+            <div class="vid-wrapper" id="remote-wrapper">
+                <video id="remote-video" autoplay playsinline></video>
+                <div class="name-tag" id="remote-name-display">Partner</div>
+                <div class="vid-controls">
+                    <button class="btn-icon" onclick="toggleMutePartner()"><i class="fas fa-volume-up" id="partner-vol-icon"></i></button>
+                    <button class="btn-icon" onclick="toggleMinimize('remote-wrapper')"><i class="fas fa-compress"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="bottom-panel">
+            <div id="control-box">
+                <h4>Settings</h4>
+                <label>My Name:</label>
+                <input type="text" id="my-name-input" placeholder="Enter Name" onblur="updateMyName()">
+                
+                <label style="margin-top:10px; display:block;">Room Theme:</label>
+                <select id="theme-selector" onchange="changeTheme(this.value)">
+                    <option value="theme-hearts">❤️ Hearts</option>
+                    <option value="theme-roses">🌹 Roses</option>
+                    <option value="theme-teddies">🧸 Teddies</option>
+                    <option value="theme-midnight">🌙 Midnight</option>
+                    <option value="theme-ocean">🌊 Ocean</option>
+                </select>
+
+                <label style="margin-top:10px; display:block;">YouTube Sync:</label>
+                <button class="action-btn" onclick="toggleYTInput()"><i class="fab fa-youtube"></i> Open Player</button>
+                <div id="yt-controls" class="hidden" style="margin-top:5px;">
+                    <input type="text" id="yt-url" placeholder="Paste YouTube Link">
+                    <button class="action-btn" style="margin-top:5px;" onclick="loadVideo()">Play Sync</button>
+                </div>
+                
+                <div id="invite-area" style="margin-top:15px; border-top:1px solid #ccc; padding-top:10px;">
+                    <small>Invite Partner:</small>
+                    <button class="action-btn" style="background:#28a745;" onclick="copyLink()">Copy Room Link</button>
+                </div>
+            </div>
+
+            <div id="chat-box-container">
+                <div id="messages"></div>
+                <div id="chat-input-area">
+                    <input type="text" id="msg-input" placeholder="Type a message..." onkeypress="handleEnter(event)">
+                    <button class="send-btn" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+
+    <script>
+        // --- VARIABLES ---
+        let peer, conn, localStream, currentCall;
+        let player; 
+        let isHost = false;
+        let myName = "Me";
+        let facingMode = "user"; // 'user' (front) or 'environment' (back)
+        
+        // --- DOM ELEMENTS ---
+        const localVideo = document.getElementById('local-video');
+        const remoteVideo = document.getElementById('remote-video');
+        const msgsDiv = document.getElementById('messages');
+        const camLoader = document.getElementById('cam-loader');
+        
+        // --- STARTUP LOGIC ---
+        function enterApp() {
+            document.getElementById('splash-screen').style.display = 'none';
+            startCamera();
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: facingMode }, 
+                    audio: true 
+                });
+                localStream = stream;
+                localVideo.srcObject = stream;
+                if(!peer) initPeer();
+            } catch (err) {
+                alert("Camera Access Error: " + err);
+            }
+        }
+
+        // --- CAMERA FLIP LOGIC ---
+        async function switchCamera(btn) {
+            // 1. Animation & UI
+            btn.classList.add('hidden'); // hide button briefly
+            camLoader.style.display = 'block';
+            localVideo.style.opacity = '0.5';
+
+            // 2. Stop current tracks (Release Hardware)
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+
+            // 3. Toggle Mode
+            facingMode = facingMode === 'user' ? 'environment' : 'user';
+
+            // 4. WAIT 500ms (The pause you requested to avoid freeze)
+            await new Promise(r => setTimeout(r, 500));
+
+            // 5. Start New Camera
+            try {
+                const newStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facingMode },
+                    audio: true
+                });
+                
+                localStream = newStream;
+                localVideo.srcObject = newStream;
+
+                // 6. Update Peer Connection (Replace Track)
+                if (currentCall) {
+                    const videoTrack = localStream.getVideoTracks()[0];
+                    const audioTrack = localStream.getAudioTracks()[0];
+                    
+                    const senders = currentCall.peerConnection.getSenders();
+                    const videoSender = senders.find(s => s.track.kind === 'video');
+                    const audioSender = senders.find(s => s.track.kind === 'audio');
+
+                    if(videoSender) videoSender.replaceTrack(videoTrack);
+                    if(audioSender) audioSender.replaceTrack(audioTrack);
+                }
+                
+                // Adjust Mirroring (Back camera shouldn't be mirrored usually, but let's keep consistency or toggle)
+                if(facingMode === 'environment') localVideo.style.transform = "scaleX(1)";
+                else localVideo.style.transform = "scaleX(-1)";
+
+            } catch (err) {
+                console.error("Flip failed", err);
+                alert("Could not switch camera.");
+                // Try to recover 'user' camera
+                facingMode = 'user';
+                startCamera(); 
+            }
+
+            // 7. Cleanup UI
+            camLoader.style.display = 'none';
+            localVideo.style.opacity = '1';
+            btn.classList.remove('hidden');
+        }
+
+        // --- PEERJS SETUP ---
+        function initPeer() {
+            peer = new Peer(); 
+
+            peer.on('open', (id) => {
+                document.getElementById('my-id').innerText = id;
+                const urlParams = new URLSearchParams(window.location.search);
+                const partnerId = urlParams.get('call');
+
+                if (partnerId) {
+                    connectToPartner(partnerId);
+                } else {
+                    isHost = true;
+                    sysMsg("Room created. Send link to partner.");
+                }
+            });
+
+            peer.on('connection', (c) => {
+                conn = c;
+                setupConnection();
+            });
+
+            peer.on('call', (call) => {
+                currentCall = call; // Save global reference
+                call.answer(localStream);
+                call.on('stream', stream => {
+                    remoteVideo.srcObject = stream;
+                });
+            });
+        }
+
+        function connectToPartner(id) {
+            conn = peer.connect(id);
+            const call = peer.call(id, localStream);
+            currentCall = call; // Save global reference
+            call.on('stream', stream => {
+                remoteVideo.srcObject = stream;
+            });
+            setupConnection();
+        }
+
+        function setupConnection() {
+            conn.on('open', () => {
+                sysMsg("Connected to partner!");
+                sendData('name', myName);
+            });
+            conn.on('data', (data) => handleData(data));
+        }
+
+        // --- DATA & SYNC ---
+        function sendData(type, content) {
+            if (conn && conn.open) conn.send({ type, content });
+        }
+
+        function handleData(data) {
+            switch(data.type) {
+                case 'chat': addMsg(data.content, 'remote'); break;
+                case 'name': document.getElementById('remote-name-display').innerText = data.content; break;
+                case 'room-name': document.getElementById('room-name-input').value = data.content; break;
+                case 'theme': 
+                    document.body.className = data.content; 
+                    document.getElementById('theme-selector').value = data.content; 
+                    break;
+                case 'yt-start': startYT(data.content); break;
+                case 'yt-control': handleYTControl(data.content); break;
+            }
+        }
+
+        // --- CHAT ---
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const txt = input.value;
+            if(!txt) return;
+            addMsg(txt, 'local');
+            sendData('chat', txt);
+            input.value = '';
+        }
+
+        function addMsg(txt, type) {
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            div.innerText = txt;
+            msgsDiv.appendChild(div);
+            msgsDiv.scrollTop = msgsDiv.scrollHeight;
+        }
+
+        function sysMsg(txt) {
+            const div = document.createElement('div');
+            div.className = 'system-msg';
+            div.innerText = txt;
+            msgsDiv.appendChild(div);
+        }
+
+        function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
+
+        // --- CONTROLS ---
+        function updateMyName() {
+            myName = document.getElementById('my-name-input').value || "Me";
+            document.getElementById('local-name-display').innerText = myName;
+            sendData('name', myName);
+        }
+
+        function syncRoomName() {
+            const name = document.getElementById('room-name-input').value;
+            sendData('room-name', name);
+        }
+
+        function changeTheme(themeClass) {
+            document.body.className = themeClass;
+            sendData('theme', themeClass);
+        }
+
+        function toggleMuteSelf(btn) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if(audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                btn.classList.toggle('off');
+                btn.querySelector('i').className = audioTrack.enabled ? 'fas fa-microphone' : 'fas fa-microphone-slash';
+            }
+        }
+
+        function toggleCamSelf(btn) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            if(videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                btn.classList.toggle('off');
+                btn.querySelector('i').className = videoTrack.enabled ? 'fas fa-video' : 'fas fa-video-slash';
+            }
+        }
+
+        function toggleMutePartner() {
+            remoteVideo.muted = !remoteVideo.muted;
+            const icon = document.getElementById('partner-vol-icon');
+            icon.className = remoteVideo.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+        }
+
+        function toggleMinimize(id) {
+            document.getElementById(id).classList.toggle('minimized');
+        }
+
+        function copyLink() {
+            const url = window.location.href.split('?')[0] + '?call=' + peer.id;
+            navigator.clipboard.writeText(url);
+            alert("Link Copied! Send it to your partner.");
+        }
+
+        // --- YOUTUBE SYNC ---
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '100%',
+                width: '100%',
+                playerVars: { 'autoplay': 1, 'controls': 1 },
+                events: { 'onStateChange': onPlayerStateChange }
+            });
+        }
+
+        function toggleYTInput() { document.getElementById('yt-controls').classList.toggle('hidden'); }
+
+        function loadVideo() {
+            const url = document.getElementById('yt-url').value;
+            let videoId = "";
+            if(url.includes("v=")) videoId = url.split('v=')[1];
+            else if(url.includes("youtu.be/")) videoId = url.split('youtu.be/')[1];
+            
+            if (!videoId) return alert("Invalid YouTube URL");
+            const ampPos = videoId.indexOf('&');
+            if(ampPos != -1) videoId = videoId.substring(0, ampPos);
+
+            startYT(videoId);
+            sendData('yt-start', videoId);
+        }
+
+        function startYT(id) {
+            document.getElementById('yt-container').style.display = 'block';
+            document.body.classList.add('yt-active');
+            player.loadVideoById(id);
+        }
+
+        let isRemoteChange = false;
+        function onPlayerStateChange(event) {
+            if (isRemoteChange) return;
+            if (event.data === YT.PlayerState.PLAYING) {
+                sendData('yt-control', { action: 'play', time: player.getCurrentTime() });
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                sendData('yt-control', { action: 'pause', time: player.getCurrentTime() });
+            }
+        }
+
+        function handleYTControl(data) {
+            isRemoteChange = true;
+            if (data.action === 'play') {
+                if (Math.abs(player.getCurrentTime() - data.time) > 1) player.seekTo(data.time);
+                player.playVideo();
+            } else if (data.action === 'pause') {
+                player.seekTo(data.time);
+                player.pauseVideo();
+            }
+            setTimeout(() => { isRemoteChange = false; }, 500);
+        }
+    </script>
+</body>
+</html>
