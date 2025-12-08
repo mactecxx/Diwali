@@ -3,541 +3,529 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Together - Creative Suite</title>
+    <title>OurRoom</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* --- THEME VARIABLES --- */
         :root {
-            --primary: #4a90e2;
-            --bg: #f4f7f6;
+            --bg: #f0f2f5;
             --panel: #ffffff;
             --text: #333;
-            --border: #ddd;
+            --primary: #007bff;
+            --accent: #0056b3;
+            --border: #ccc;
         }
+
+        /* Theme Classes */
+        body.theme-vibrant { --bg: #FF9A9E; --panel: #FECFEF; --text: #333; --primary: #FF6B6B; }
+        body.theme-neon { --bg: #000000; --panel: #1a1a1a; --text: #0ff; --primary: #f0f; --border: #333; }
+        body.theme-romantic { --bg: #ffe6e6; --panel: #fff0f0; --text: #5c2a2a; --primary: #ff4d4d; }
+        body.theme-black { --bg: #121212; --panel: #1e1e1e; --text: #e0e0e0; --primary: #bb86fc; --border: #333; }
+        body.theme-green { --bg: #e8f5e9; --panel: #c8e6c9; --text: #1b5e20; --primary: #43a047; }
+        body.theme-sky { --bg: #e3f2fd; --panel: #bbdefb; --text: #0d47a1; --primary: #2196f3; }
 
         * { box-sizing: border-box; tap-highlight-color: transparent; }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; transition: 0.3s; }
 
-        /* --- TOP CONTROL DECK --- */
-        #top-deck {
-            background: var(--panel); border-bottom: 1px solid var(--border);
-            padding: 10px; display: flex; flex-direction: column; gap: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 100; flex-shrink: 0;
+        /* --- STARTUP POPUP --- */
+        #start-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+            z-index: 9999; display: flex; justify-content: center; align-items: center;
         }
-
-        /* Row 1: Identity */
-        .identity-row { display: flex; justify-content: space-between; align-items: center; }
-        .name-group { display: flex; align-items: center; gap: 5px; background: #eee; padding: 5px 12px; border-radius: 20px; }
-        .name-group input { border: none; background: transparent; font-weight: bold; font-size: 1rem; width: 120px; outline: none; }
-        .invite-btn { font-size: 0.9rem; color: var(--primary); cursor: pointer; font-weight: 600; }
-
-        /* Row 2: Main Actions */
-        .action-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
-        .btn-main {
-            background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px;
-            cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.9rem; white-space: nowrap;
-            transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        .modal-box {
+            background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px;
+            text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
-        .btn-main:hover { background: #f0f0f0; }
-        .btn-main.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .modal-box input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; }
+        .modal-box button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; }
 
-        /* Row 3: Whiteboard Toolbar (Hidden by default) */
+        /* --- HEADER --- */
+        #header {
+            height: 60px; background: var(--panel); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; padding: 0 15px; z-index: 100;
+        }
+        #room-title { font-weight: bold; font-size: 1.2rem; }
+        .controls { display: flex; gap: 10px; }
+        .btn-icon { background: none; border: none; font-size: 1.2rem; color: var(--text); cursor: pointer; padding: 5px; }
+        .btn-icon:hover { opacity: 0.7; }
+
+        /* --- MAIN STAGE (Youtube / Whiteboard) --- */
+        #main-stage {
+            flex: 1; position: relative; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center;
+        }
+        
+        /* YouTube Layer */
+        #yt-container { width: 100%; height: 100%; display: none; }
+        #yt-input-bar {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); padding: 5px; border-radius: 8px; z-index: 10; display: flex; gap: 5px;
+        }
+        
+        /* Whiteboard Layer */
+        #wb-container { width: 100%; height: 100%; background: white; display: none; position: relative; }
         #wb-toolbar {
-            display: none; flex-wrap: wrap; gap: 8px; align-items: center; 
-            border-top: 1px solid var(--border); padding-top: 8px; margin-top: 2px;
-            animation: slideDown 0.3s ease;
+            position: absolute; top: 10px; left: 10px; background: #f0f0f0; border: 1px solid #ccc;
+            padding: 5px; border-radius: 8px; display: flex; flex-direction: column; gap: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
-        #wb-toolbar.show { display: flex; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .tool-row { display: flex; gap: 5px; flex-wrap: wrap; }
+        .wb-btn { width: 30px; height: 30px; border: 1px solid #ccc; background: white; cursor: pointer; display: flex; justify-content: center; align-items: center; border-radius: 4px; }
+        .wb-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-        .tool-section { display: flex; align-items: center; gap: 5px; border-right: 1px solid #eee; padding-right: 8px; }
-        .tool-btn {
-            width: 32px; height: 32px; border: 1px solid transparent; border-radius: 4px; 
-            cursor: pointer; display: flex; justify-content: center; align-items: center; color: #555; background: #f9f9f9;
+        /* --- FLOATING VIDEO BUBBLES --- */
+        #video-overlay {
+            position: absolute; top: 70px; right: 10px; width: 150px; display: flex; flex-direction: column; gap: 10px; z-index: 200;
         }
-        .tool-btn:hover { background: #eee; }
-        .tool-btn.selected { background: #e6f0ff; color: var(--primary); border-color: var(--primary); }
-        
-        input[type="color"] { width: 32px; height: 32px; border: none; padding: 0; background: none; cursor: pointer; }
-        input[type="range"] { width: 80px; }
+        .video-card {
+            width: 150px; height: 100px; background: #333; border-radius: 10px; overflow: hidden;
+            position: relative; border: 2px solid var(--panel); box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: height 0.3s;
+        }
+        .video-card video { width: 100%; height: 100%; object-fit: cover; }
+        .vid-controls {
+            position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.6);
+            padding: 2px 5px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .vid-controls span { color: white; font-size: 0.7rem; }
+        .mini-btn { color: white; cursor: pointer; font-size: 0.8rem; margin-left: 5px; }
 
-        /* --- WORKSPACE --- */
-        #workspace {
-            flex: 1; position: relative; overflow: hidden; 
-            display: flex; justify-content: center; align-items: center;
-            background: #222; /* Dark background for cinema feel */
-        }
+        /* Minimized State */
+        .video-card.minimized { height: 30px; }
+        .video-card.minimized video { display: none; }
 
-        /* Video Grid - Automatic Layout */
-        #video-grid {
-            display: flex; gap: 10px; width: 100%; height: 100%; padding: 10px;
-            transition: all 0.3s;
-        }
-        /* Mobile (Default Stacked) */
-        @media (max-width: 768px) {
-            #video-grid { flex-direction: column; }
-        }
-        /* Laptop (Side-by-Side) */
-        @media (min-width: 769px) {
-            #video-grid { flex-direction: row; }
-        }
-        
-        .vid-card {
-            flex: 1; position: relative; background: #000; border-radius: 12px; overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #333;
-        }
-        
-        video { width: 100%; height: 100%; object-fit: cover; }
-        #local-video { transform: scaleX(-1); }
-
-        /* LAYERS */
-        #whiteboard-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: transparent; z-index: 50; 
-            display: none; cursor: crosshair;
-        }
-        #whiteboard-layer.active { display: block; }
-
-        #yt-layer {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 90%; height: 80%; max-width: 800px;
-            background: black; z-index: 40; display: none; border-radius: 12px; 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5); overflow: hidden;
-        }
-
-        /* CHAT */
-        #chat-float-btn {
-            position: absolute; bottom: 20px; right: 20px; 
-            width: 50px; height: 50px; border-radius: 50%; background: var(--primary); 
-            color: white; display: flex; align-items: center; justify-content: center; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; z-index: 60;
-            transition: transform 0.2s;
-        }
-        #chat-float-btn:hover { transform: scale(1.1); }
-        
+        /* --- BOTTOM CHAT PANEL --- */
         #chat-panel {
-            position: absolute; bottom: 80px; right: 20px; width: 300px; height: 400px;
-            background: white; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-            display: none; flex-direction: column; z-index: 60; overflow: hidden;
+            height: 50%; background: var(--panel); border-top: 2px solid var(--border);
+            display: flex; flex-direction: column; transition: height 0.3s; z-index: 150;
         }
-        #chat-msgs { flex: 1; padding: 10px; overflow-y: auto; background: #f9f9f9; display: flex; flex-direction: column; gap: 5px; }
-        .msg { padding: 8px 12px; border-radius: 15px; font-size: 0.9rem; max-width: 80%; word-wrap: break-word; }
-        .msg.local { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
-        .msg.remote { align-self: flex-start; background: #e4e6eb; color: #333; border-bottom-left-radius: 2px; }
+        #chat-panel.minimized { height: 40px; }
+
+        .chat-header {
+            padding: 8px 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0,0,0,0.05); cursor: pointer;
+        }
+        .chat-tabs { display: flex; gap: 15px; }
+        .tab { cursor: pointer; padding-bottom: 2px; font-weight: bold; opacity: 0.6; }
+        .tab.active { border-bottom: 2px solid var(--primary); color: var(--primary); opacity: 1; }
         
-        @media (max-width: 500px) {
-            #chat-panel { width: 90%; right: 5%; height: 50%; }
+        .chat-body { flex: 1; position: relative; overflow: hidden; display: none; }
+        .chat-body.active { display: flex; flex-direction: column; }
+        
+        .messages { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 8px 12px; border-radius: 12px; font-size: 0.9rem; max-width: 80%; word-wrap: break-word; }
+        .msg.sent { align-self: flex-end; background: var(--primary); color: white; }
+        .msg.received { align-self: flex-start; background: rgba(0,0,0,0.1); color: var(--text); }
+        
+        .input-area { padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 5px; }
+        .input-area input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 20px; outline: none; background: rgba(255,255,255,0.8); }
+
+        /* Theme Dropdown */
+        #theme-menu {
+            position: absolute; top: 50px; right: 60px; background: white; border: 1px solid #ccc;
+            border-radius: 8px; padding: 5px; display: none; flex-direction: column; gap: 5px; z-index: 300;
         }
+        .theme-opt { padding: 5px 10px; cursor: pointer; font-size: 0.9rem; border-radius: 4px; color: black; }
+        .theme-opt:hover { background: #eee; }
+
     </style>
 </head>
 <body>
 
-    <div id="top-deck">
-        <div class="identity-row">
-            <div class="name-group">
-                <i class="fas fa-user-edit" style="color:#666;"></i>
-                <input type="text" id="my-name" value="User" onblur="updateName()">
-            </div>
-            <div class="invite-btn" onclick="copyLink()">
-                <i class="fas fa-link"></i> Invite Partner
-            </div>
-        </div>
-
-        <div class="action-row">
-            <button class="btn-main" id="btn-wb" onclick="toggleWhiteboard()"><i class="fas fa-paint-brush"></i> Paint</button>
-            <button class="btn-main" onclick="toggleScreenShare()"><i class="fas fa-desktop"></i> Share Screen</button>
-            <button class="btn-main" onclick="toggleYT()"><i class="fab fa-youtube" style="color:red;"></i> YouTube</button>
-            <button class="btn-main" onclick="clearChat()"><i class="fas fa-trash"></i> Chat Clear</button>
-        </div>
-
-        <div id="wb-toolbar">
-            <div class="tool-section">
-                <div class="tool-btn selected" id="tool-pen" onclick="setTool('pen')" title="Pen"><i class="fas fa-pen"></i></div>
-                <div class="tool-btn" id="tool-eraser" onclick="setTool('eraser')" title="Eraser"><i class="fas fa-eraser"></i></div>
-                <div class="tool-btn" onclick="clearCanvas()" title="Clear Screen"><i class="fas fa-file"></i></div>
-            </div>
-            <div class="tool-section">
-                <div class="tool-btn" id="brush-round" onclick="setBrush('round')" title="Round Brush"><i class="fas fa-circle"></i></div>
-                <div class="tool-btn" id="brush-square" onclick="setBrush('square')" title="Marker"><i class="fas fa-square"></i></div>
-                <div class="tool-btn" id="brush-chalk" onclick="setBrush('chalk')" title="Chalk"><i class="fas fa-spray-can"></i></div>
-            </div>
-            <div class="tool-section">
-                <div class="tool-btn" id="shape-rect" onclick="setShape('rect')" title="Rectangle"><i class="far fa-square"></i></div>
-                <div class="tool-btn" id="shape-tri" onclick="setShape('tri')" title="Triangle"><i class="fas fa-play" style="transform: rotate(-90deg);"></i></div>
-                <div class="tool-btn" id="shape-heart" onclick="setShape('heart')" title="Heart"><i class="fas fa-heart"></i></div>
-            </div>
-            <div class="tool-section" style="border:none; flex:1;">
-                <input type="color" id="color-picker" value="#000000" onchange="setColor(this.value)">
-                <input type="range" id="size-slider" min="2" max="40" value="5" onchange="setSize(this.value)" title="Size">
-                <button class="tool-btn" onclick="fillBackground()" title="Fill Background" style="width:auto; padding:0 8px; font-size:0.8rem;"><i class="fas fa-fill-drip"></i> Fill BG</button>
-            </div>
+    <div id="start-modal">
+        <div class="modal-box">
+            <h2>Welcome</h2>
+            <input type="text" id="start-name" placeholder="Enter Your Name">
+            <input type="text" id="start-room" placeholder="Room Name (Optional)">
+            <button onclick="enterApp()">Enter Room</button>
         </div>
     </div>
 
-    <div id="workspace">
-        <div id="video-grid">
-            <div class="vid-card">
-                <video id="local-video" autoplay muted playsinline></video>
-                <div style="position:absolute; bottom:10px; left:10px; color:white; font-size:0.8rem; background:rgba(0,0,0,0.6); padding:2px 6px; border-radius:4px;">You</div>
-            </div>
-            <div class="vid-card">
-                <video id="remote-video" autoplay playsinline></video>
-                <div style="position:absolute; bottom:10px; left:10px; color:white; font-size:0.8rem; background:rgba(0,0,0,0.6); padding:2px 6px; border-radius:4px;" id="remote-name">Partner</div>
-            </div>
+    <div id="header">
+        <div id="room-title">Ourroom.netlify.app</div>
+        <div class="controls">
+            <button class="btn-icon" onclick="toggleThemeMenu()" title="Themes"><i class="fas fa-palette"></i></button>
+            <button class="btn-icon" onclick="switchStage('yt')" title="YouTube"><i class="fab fa-youtube"></i></button>
+            <button class="btn-icon" onclick="switchStage('wb')" title="Whiteboard"><i class="fas fa-paint-brush"></i></button>
+            <button class="btn-icon" onclick="shareScreen()" title="Screen Share"><i class="fas fa-desktop"></i></button>
+            <button class="btn-icon" onclick="copyLink()" title="Invite"><i class="fas fa-link"></i></button>
         </div>
+        <div id="theme-menu">
+            <div class="theme-opt" onclick="setTheme('vibrant')">🌸 Vibrant</div>
+            <div class="theme-opt" onclick="setTheme('neon')">🌃 Neon</div>
+            <div class="theme-opt" onclick="setTheme('romantic')">❤️ Romantic</div>
+            <div class="theme-opt" onclick="setTheme('black')">⚫ Black</div>
+            <div class="theme-opt" onclick="setTheme('green')">🌿 Green</div>
+            <div class="theme-opt" onclick="setTheme('sky')">☁️ Sky Blue</div>
+        </div>
+    </div>
 
-        <div id="yt-layer">
-            <div style="height:35px; background:#222; display:flex; justify-content:space-between; align-items:center; padding:0 10px;">
-                <span style="color:white; font-size:0.9rem;"><i class="fab fa-youtube"></i> Player</span>
+    <div id="video-overlay">
+        <div class="video-card" id="card-local">
+            <div class="vid-controls">
+                <span>Me</span>
                 <div>
-                    <input type="text" id="yt-url" placeholder="Paste ID or Link" style="height:24px; border-radius:4px; border:none; padding-left:5px;">
-                    <button onclick="loadYT()" style="height:24px; cursor:pointer;">Play</button>
-                    <button onclick="toggleYT()" style="background:transparent; border:none; color:white; font-size:1.1rem; cursor:pointer; margin-left:10px;">&times;</button>
+                    <i class="fas fa-microphone-slash mini-btn" onclick="toggleMute('local')"></i>
+                    <i class="fas fa-compress-arrows-alt mini-btn" onclick="toggleMin('card-local')"></i>
                 </div>
             </div>
-            <div id="player" style="height:calc(100% - 35px);"></div>
+            <video id="local-video" autoplay muted playsinline></video>
         </div>
-
-        <canvas id="whiteboard-layer"></canvas>
+        <div class="video-card" id="card-remote">
+            <div class="vid-controls">
+                <span id="remote-label">Guest</span>
+                <div>
+                    <i class="fas fa-volume-mute mini-btn" onclick="toggleMute('remote')"></i>
+                    <i class="fas fa-compress-arrows-alt mini-btn" onclick="toggleMin('card-remote')"></i>
+                </div>
+            </div>
+            <video id="remote-video" autoplay playsinline></video>
+        </div>
     </div>
 
-    <div id="chat-float-btn" onclick="toggleChat()"><i class="fas fa-comment-alt"></i></div>
+    <div id="main-stage">
+        <div id="stage-placeholder" style="color:white; text-align:center;">
+            <h3>Waiting for activity...</h3>
+            <p>Select YouTube or Paint from the header.</p>
+        </div>
+
+        <div id="yt-container">
+            <div id="yt-input-bar">
+                <input type="text" id="yt-url" placeholder="Video ID or URL" style="border:none; border-radius:4px; padding:5px;">
+                <button onclick="loadYT()">Play</button>
+            </div>
+            <div id="player"></div>
+        </div>
+
+        <div id="wb-container">
+            <canvas id="wb-canvas"></canvas>
+            <div id="wb-toolbar">
+                <div class="tool-row">
+                    <div class="wb-btn active" onclick="wbTool='pen'" title="Pen"><i class="fas fa-pen"></i></div>
+                    <div class="wb-btn" onclick="wbTool='eraser'" title="Eraser"><i class="fas fa-eraser"></i></div>
+                    <div class="wb-btn" onclick="clearWB()"><i class="fas fa-trash"></i></div>
+                </div>
+                <div class="tool-row">
+                    <div class="wb-btn" onclick="wbTool='rect'"><i class="far fa-square"></i></div>
+                    <div class="wb-btn" onclick="wbTool='circle'"><i class="far fa-circle"></i></div>
+                </div>
+                <input type="color" id="wb-color" value="#000000" onchange="wbColor=this.value">
+                <input type="range" id="wb-size" min="1" max="20" value="3" onchange="wbSize=this.value">
+            </div>
+        </div>
+    </div>
+
     <div id="chat-panel">
-        <div style="padding:10px; border-bottom:1px solid #eee; font-weight:bold; background:#fff;">Chat</div>
-        <div id="chat-msgs"></div>
-        <div style="display:flex; border-top:1px solid #ddd; padding:5px;">
-            <input type="text" id="msg-input" placeholder="Type..." style="flex:1; border:none; padding:10px; outline:none;" onkeypress="if(event.key==='Enter') sendMsg()">
-            <button onclick="sendMsg()" style="border:none; background:none; color:var(--primary); font-size:1.2rem; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+        <div class="chat-header">
+            <div class="chat-tabs">
+                <div class="tab active" onclick="switchChat('live')" id="tab-live">Live Chat</div>
+                <div class="tab" onclick="switchChat('saved')" id="tab-saved">Saved Chat</div>
+            </div>
+            <i class="fas fa-chevron-down" onclick="toggleChatPanel()"></i>
+        </div>
+
+        <div class="chat-body active" id="body-live">
+            <div class="messages" id="msgs-live">
+                <div style="text-align:center; color:#888; font-size:0.8rem;">Temporary Room Chat</div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="in-live" placeholder="Message room..." onkeypress="if(event.key==='Enter') sendLive()">
+                <button class="btn-icon" onclick="sendLive()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+
+        <div class="chat-body" id="body-saved">
+            <div class="messages" id="msgs-saved"></div>
+            <div class="input-area">
+                <input type="text" id="in-saved" placeholder="Personal notes..." onkeypress="if(event.key==='Enter') saveNote()">
+                <button class="btn-icon" onclick="saveNote()"><i class="fas fa-save"></i></button>
+            </div>
         </div>
     </div>
 
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        // --- CONFIG & VARIABLES ---
+        // --- STATE & VARS ---
         const peer = new Peer();
-        let conn, currentCall, localStream;
-        let myName = localStorage.getItem('p2p_name') || "User";
-        document.getElementById('my-name').value = myName;
+        let conn, call, localStream;
+        let myName = "User";
+        let roomName = "Ourroom.netlify.app";
 
-        // --- INIT P2P ---
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true }).then(stream => {
-            localStream = stream;
-            document.getElementById('local-video').srcObject = stream;
+        // --- STARTUP LOGIC ---
+        function enterApp() {
+            const n = document.getElementById('start-name').value;
+            const r = document.getElementById('start-room').value;
+            if(n) myName = n;
+            if(r) roomName = r;
             
-            peer.on('open', id => {
-                const params = new URLSearchParams(window.location.search);
-                const partnerId = params.get('call');
-                if(partnerId) connect(partnerId);
-            });
+            document.getElementById('room-title').innerText = roomName;
+            document.getElementById('start-modal').style.display = 'none';
             
-            peer.on('call', call => {
-                call.answer(stream);
-                setupCall(call);
-            });
-            peer.on('connection', c => {
-                conn = c;
-                setupData();
-            });
-        });
+            initMedia();
+            loadSavedChat();
+        }
 
-        function connect(id) {
+        // --- PEERJS / MEDIA ---
+        function initMedia() {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+                localStream = stream;
+                document.getElementById('local-video').srcObject = stream;
+
+                peer.on('open', id => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const hostId = urlParams.get('host');
+                    if (hostId) connectToHost(hostId);
+                });
+
+                peer.on('call', incoming => {
+                    incoming.answer(stream);
+                    handleCall(incoming);
+                });
+
+                peer.on('connection', c => {
+                    conn = c;
+                    setupDataConnection();
+                });
+            });
+        }
+
+        function connectToHost(id) {
             conn = peer.connect(id);
-            const call = peer.call(id, localStream);
-            setupCall(call);
-            setupData();
+            const outgoing = peer.call(id, localStream);
+            handleCall(outgoing);
+            setupDataConnection();
         }
 
-        function setupCall(call) {
-            currentCall = call;
-            call.on('stream', s => document.getElementById('remote-video').srcObject = s);
+        function handleCall(c) {
+            call = c;
+            c.on('stream', s => document.getElementById('remote-video').srcObject = s);
         }
 
-        function setupData() {
+        function setupDataConnection() {
             conn.on('open', () => {
-                send({ type: 'name', val: myName });
-                alert("Partner Connected!");
+                sendData({ type: 'info', name: myName });
+                // Sync Theme on connect
+                sendData({ type: 'theme', theme: document.body.className });
             });
             conn.on('data', data => handleData(data));
         }
 
-        function send(data) { if(conn && conn.open) conn.send(data); }
+        function sendData(obj) { if(conn && conn.open) conn.send(obj); }
 
         function handleData(d) {
             switch(d.type) {
-                case 'name': document.getElementById('remote-name').innerText = d.val; break;
-                case 'chat': addChat(d.val, 'remote'); break;
-                case 'draw': drawRemote(d); break;
-                case 'clear': ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='white'; ctx.fillRect(0,0,canvas.width,canvas.height); break;
-                case 'bg-fill': ctx.fillStyle=d.color; ctx.fillRect(0,0,canvas.width,canvas.height); break;
-                case 'yt': handleYT(d.id); break;
+                case 'info': document.getElementById('remote-label').innerText = d.name; break;
+                case 'chat': appendMsg('live', d.msg, 'received'); break;
+                case 'theme': applyTheme(d.theme, false); break;
+                case 'yt': handleYTSync(d); break;
+                case 'draw': handleDraw(d); break;
+                case 'stage': switchStage(d.view, false); break;
             }
         }
 
-        // --- UI UTILS ---
-        function updateName() {
-            myName = document.getElementById('my-name').value;
-            localStorage.setItem('p2p_name', myName);
-            send({ type: 'name', val: myName });
-        }
+        // --- UI ACTIONS ---
+        function toggleMin(id) { document.getElementById(id).classList.toggle('minimized'); }
+        function toggleChatPanel() { document.getElementById('chat-panel').classList.toggle('minimized'); }
         function copyLink() {
-            const url = window.location.href.split('?')[0] + '?call=' + peer.id;
+            const url = window.location.href.split('?')[0] + '?host=' + peer.id;
             navigator.clipboard.writeText(url);
-            alert("Invite Link Copied!");
+            alert("Invite link copied!");
+        }
+        function toggleMute(who) {
+            if(who === 'local') {
+                localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
+            } else {
+                document.getElementById('remote-video').muted = !document.getElementById('remote-video').muted;
+            }
+        }
+        async function shareScreen() {
+            try {
+                const s = await navigator.mediaDevices.getDisplayMedia({video:true});
+                const sender = call.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                sender.replaceTrack(s.getVideoTracks()[0]);
+                document.getElementById('local-video').srcObject = s;
+                s.getVideoTracks()[0].onended = () => { /* Logic to revert */ };
+            } catch(e) {}
         }
 
-        // --- WHITEBOARD ENGINE ---
-        const canvas = document.getElementById('whiteboard-layer');
-        const ctx = canvas.getContext('2d');
-        let isPainting = false;
-        let startX, startY;
-        let savedData; // For shape preview
-        
-        let currentTool = 'pen'; 
-        let currentShape = null; 
-        let currentColor = '#000000';
-        let currentSize = 5;
-        let currentBrush = 'round'; // round, square, chalk
-
-        // Setup Canvas
-        function resizeCanvas() {
-            canvas.width = canvas.parentElement.offsetWidth;
-            canvas.height = canvas.parentElement.offsetHeight;
-            // Initialize White Background
-            ctx.fillStyle = "rgba(255,255,255,0)"; // Transparent initially
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // --- THEMES ---
+        function toggleThemeMenu() { 
+            const m = document.getElementById('theme-menu');
+            m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
         }
-        window.addEventListener('resize', resizeCanvas);
-        window.addEventListener('load', resizeCanvas);
+        function setTheme(name) {
+            applyTheme('theme-' + name, true);
+        }
+        function applyTheme(cls, broadcast) {
+            document.body.className = cls;
+            document.getElementById('theme-menu').style.display = 'none';
+            if(broadcast) sendData({ type: 'theme', theme: cls });
+        }
 
-        function toggleWhiteboard() {
-            const wb = document.getElementById('whiteboard-layer');
-            const toolbar = document.getElementById('wb-toolbar');
-            const btn = document.getElementById('btn-wb');
+        // --- CHAT SYSTEM ---
+        function switchChat(type) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.chat-body').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-'+type).classList.add('active');
+            document.getElementById('body-'+type).classList.add('active');
+        }
+
+        function appendMsg(type, txt, cls) {
+            const div = document.createElement('div');
+            div.className = `msg ${cls}`;
+            div.innerText = txt;
+            document.getElementById(`msgs-${type}`).appendChild(div);
+            // Auto scroll
+            document.getElementById(`msgs-${type}`).scrollTop = document.getElementById(`msgs-${type}`).scrollHeight;
+        }
+
+        function sendLive() {
+            const input = document.getElementById('in-live');
+            const txt = input.value.trim();
+            if(!txt) return;
+            appendMsg('live', txt, 'sent');
+            sendData({ type: 'chat', msg: txt });
+            input.value = '';
+        }
+
+        function saveNote() {
+            const input = document.getElementById('in-saved');
+            const txt = input.value.trim();
+            if(!txt) return;
+            appendMsg('saved', txt, 'sent'); // Visual only for user
             
-            if(wb.classList.contains('active')) {
-                wb.classList.remove('active');
-                toolbar.classList.remove('show');
-                btn.classList.remove('active');
-            } else {
-                wb.classList.add('active');
-                toolbar.classList.add('show');
-                btn.classList.add('active');
-                resizeCanvas();
-                // If it's the first time, make it white so it looks like paper
-                if(ctx.getImageData(0,0,1,1).data[3] === 0) {
-                     ctx.fillStyle = "white";
-                     ctx.fillRect(0,0,canvas.width, canvas.height);
-                }
-            }
+            // Save to LocalStorage
+            let history = JSON.parse(localStorage.getItem('my_notes') || '[]');
+            history.push({ txt: txt, date: new Date().toLocaleString() });
+            localStorage.setItem('my_notes', JSON.stringify(history));
+            input.value = '';
         }
 
-        function setTool(t) { currentTool = t; currentShape = null; highlightBtn('tool-'+t); }
-        function setShape(s) { currentShape = s; currentTool = 'shape'; highlightBtn('shape-'+s); }
-        function setColor(c) { currentColor = c; }
-        function setSize(s) { currentSize = s; }
-        function setBrush(b) { currentBrush = b; highlightBtn('brush-'+b); }
-        
-        function highlightBtn(id) {
-            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('selected'));
-            document.getElementById(id)?.classList.add('selected');
-        }
-        function clearCanvas() {
-            ctx.fillStyle='white'; ctx.fillRect(0,0,canvas.width,canvas.height);
-            send({type:'clear'});
-        }
-        function fillBackground() {
-            ctx.fillStyle = currentColor;
-            ctx.fillRect(0,0,canvas.width,canvas.height);
-            send({type:'bg-fill', color:currentColor});
+        function loadSavedChat() {
+            let history = JSON.parse(localStorage.getItem('my_notes') || '[]');
+            history.forEach(h => appendMsg('saved', `${h.date}: ${h.txt}`, 'received'));
         }
 
-        // Drawing Events
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', endDraw);
-        // Touch support
-        canvas.addEventListener('touchstart', e => {
-            const t = e.touches[0];
-            canvas.dispatchEvent(new MouseEvent("mousedown", { clientX: t.clientX, clientY: t.clientY }));
-        });
-        canvas.addEventListener('touchmove', e => {
-            e.preventDefault();
-            const t = e.touches[0];
-            canvas.dispatchEvent(new MouseEvent("mousemove", { clientX: t.clientX, clientY: t.clientY }));
-        });
-        canvas.addEventListener('touchend', () => canvas.dispatchEvent(new MouseEvent("mouseup", {})));
-
-        function getPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        // --- STAGE SWITCHER ---
+        function switchStage(view, broadcast = true) {
+            document.getElementById('stage-placeholder').style.display = 'none';
+            document.getElementById('yt-container').style.display = (view === 'yt') ? 'block' : 'none';
+            document.getElementById('wb-container').style.display = (view === 'wb') ? 'block' : 'none';
+            if(view === 'wb') resizeCanvas();
+            if(broadcast) sendData({ type: 'stage', view: view });
         }
 
-        function startDraw(e) {
-            isPainting = true;
-            const pos = getPos(e);
-            startX = pos.x; startY = pos.y;
-            savedData = ctx.getImageData(0, 0, canvas.width, canvas.height); // Save state
-            if(currentTool === 'pen' || currentTool === 'eraser') {
-                ctx.beginPath(); ctx.moveTo(startX, startY);
-            }
-        }
-
-        function draw(e) {
-            if(!isPainting) return;
-            const pos = getPos(e);
-
-            if(currentTool === 'shape') {
-                // Restore & Preview Shape
-                ctx.putImageData(savedData, 0, 0);
-                drawShapeLogic(ctx, currentShape, startX, startY, pos.x, pos.y, currentColor, currentSize);
-            } else {
-                // Freehand
-                const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
-                drawLine(ctx, startX, startY, pos.x, pos.y, color, currentSize, currentBrush);
-                
-                // Send Live
-                send({
-                    type: 'draw', kind: 'line', 
-                    x0: startX/canvas.width, y0: startY/canvas.height, 
-                    x1: pos.x/canvas.width, y1: pos.y/canvas.height, 
-                    color: color, size: currentSize, brush: currentBrush
-                });
-                startX = pos.x; startY = pos.y;
-            }
-        }
-
-        function endDraw(e) {
-            if(!isPainting) return;
-            isPainting = false;
-            const pos = getPos(e);
-            // If shape, send final command
-            if(currentTool === 'shape') {
-                send({
-                    type: 'draw', kind: 'shape', shape: currentShape,
-                    x0: startX/canvas.width, y0: startY/canvas.height,
-                    x1: pos.x/canvas.width, y1: pos.y/canvas.height,
-                    color: currentColor, size: currentSize
-                });
-            }
-        }
-
-        // Renderers
-        function drawLine(c, x0, y0, x1, y1, col, size, brush) {
-            c.beginPath();
-            c.moveTo(x0, y0);
-            c.lineTo(x1, y1);
-            c.strokeStyle = col;
-            c.lineWidth = size;
-            
-            if(brush === 'chalk') {
-                // Chalk Simulation: Draw random dots around the line
-                c.lineCap = 'butt';
-                for(let i=0; i<size*2; i++) {
-                    let ox = (Math.random()-0.5) * size;
-                    let oy = (Math.random()-0.5) * size;
-                    c.fillStyle = col;
-                    c.fillRect(x1+ox, y1+oy, 1, 1);
-                }
-                // Also draw a faint line for continuity
-                c.globalAlpha = 0.5;
-                c.stroke();
-                c.globalAlpha = 1.0;
-            } else if(brush === 'square') {
-                c.lineCap = 'butt';
-                c.stroke();
-            } else {
-                c.lineCap = 'round';
-                c.stroke();
-            }
-        }
-
-        function drawShapeLogic(c, shape, x0, y0, x1, y1, color, size) {
-            c.beginPath();
-            c.strokeStyle = color;
-            c.lineWidth = size;
-            c.lineCap = 'round';
-            const w = x1 - x0;
-            const h = y1 - y0;
-
-            if (shape === 'rect') {
-                c.rect(x0, y0, w, h);
-            } else if (shape === 'tri') {
-                c.moveTo(x0 + w/2, y0);
-                c.lineTo(x0, y0 + h);
-                c.lineTo(x0 + w, y0 + h);
-                c.closePath();
-            } else if (shape === 'heart') {
-                let topH = h * 0.3;
-                c.moveTo(x0 + w / 2, y0 + h / 5);
-                c.bezierCurveTo(x0 + w / 2, y0, x0, y0, x0, y0 + topH);
-                c.bezierCurveTo(x0, y0 + (h + topH) / 2, x0 + w / 2, y0 + h, x0 + w / 2, y0 + h);
-                c.bezierCurveTo(x0 + w / 2, y0 + h, x0 + w, y0 + (h + topH) / 2, x0 + w, y0 + topH);
-                c.bezierCurveTo(x0 + w, y0, x0 + w / 2, y0, x0 + w / 2, y0 + h / 5);
-            }
-            c.stroke();
-        }
-
-        function drawRemote(d) {
-            const w = canvas.width; const h = canvas.height;
-            if(d.kind === 'line') drawLine(ctx, d.x0*w, d.y0*h, d.x1*w, d.y1*h, d.color, d.size, d.brush);
-            else if (d.kind === 'shape') {
-                drawShapeLogic(ctx, d.shape, d.x0*w, d.y0*h, d.x1*w, d.y1*h, d.color, d.size);
-            }
-        }
-
-        // --- YOUTUBE & SCREENSHARE ---
+        // --- YOUTUBE SYNC ---
         let player;
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'autoplay': 1 } });
-        }
-        function toggleYT() {
-            const el = document.getElementById('yt-layer');
-            el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+            player = new YT.Player('player', {
+                height: '100%', width: '100%',
+                playerVars: { 'autoplay': 0, 'controls': 1 },
+                events: { 'onStateChange': onPlayerStateChange }
+            });
         }
         function loadYT() {
             const val = document.getElementById('yt-url').value;
             let id = val.split('v=')[1] || val.split('/').pop();
             if(id) {
                 player.loadVideoById(id);
-                send({ type: 'yt', id: id });
+                sendData({ type: 'yt', action: 'load', id: id });
             }
         }
-        function handleYT(id) {
-            document.getElementById('yt-layer').style.display = 'block';
-            player.loadVideoById(id);
+        function onPlayerStateChange(event) {
+            // 1=playing, 2=paused
+            if(event.data === 1) sendData({ type: 'yt', action: 'play', time: player.getCurrentTime() });
+            if(event.data === 2) sendData({ type: 'yt', action: 'pause' });
+        }
+        function handleYTSync(d) {
+            if(!player || !player.loadVideoById) return;
+            if(d.action === 'load') player.loadVideoById(d.id);
+            if(d.action === 'play') {
+                if(Math.abs(player.getCurrentTime() - d.time) > 1) player.seekTo(d.time);
+                player.playVideo();
+            }
+            if(d.action === 'pause') player.pauseVideo();
         }
 
-        async function toggleScreenShare() {
-            try {
-                const s = await navigator.mediaDevices.getDisplayMedia({video:true});
-                const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
-                sender.replaceTrack(s.getVideoTracks()[0]);
-                document.getElementById('local-video').srcObject = s;
-                s.getVideoTracks()[0].onended = () => { /* Handle stop share */ };
-            } catch(e) { console.log(e); }
+        // --- WHITEBOARD (PAINT) ---
+        const canvas = document.getElementById('wb-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let wbTool = 'pen';
+        let wbColor = '#000000';
+        let wbSize = 3;
+        let lastX = 0, lastY = 0;
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+            ctx.lineCap = 'round';
         }
 
-        // --- CHAT ---
-        function toggleChat() {
-            const p = document.getElementById('chat-panel');
-            p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseout', stopDraw);
+        
+        // Touch support
+        canvas.addEventListener('touchstart', e => {
+             const t = e.touches[0];
+             startDraw({ offsetX: t.clientX - canvas.getBoundingClientRect().left, offsetY: t.clientY - canvas.getBoundingClientRect().top });
+        });
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            const t = e.touches[0];
+            draw({ offsetX: t.clientX - canvas.getBoundingClientRect().left, offsetY: t.clientY - canvas.getBoundingClientRect().top });
+        });
+        canvas.addEventListener('touchend', stopDraw);
+
+        function startDraw(e) {
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
         }
-        function sendMsg() {
-            const i = document.getElementById('msg-input');
-            const txt = i.value.trim();
-            if(!txt) return;
-            addChat(txt, 'local');
-            send({type:'chat', val:txt});
-            i.value = '';
+
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            if(wbTool === 'pen' || wbTool === 'eraser') {
+                ctx.strokeStyle = (wbTool === 'eraser') ? '#ffffff' : wbColor;
+                ctx.lineWidth = wbSize;
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(e.offsetX, e.offsetY);
+                ctx.stroke();
+
+                sendData({
+                    type: 'draw', tool: wbTool, 
+                    x0: lastX/canvas.width, y0: lastY/canvas.height, 
+                    x1: e.offsetX/canvas.width, y1: e.offsetY/canvas.height,
+                    color: wbColor, size: wbSize
+                });
+                
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+            }
         }
-        function addChat(txt, type) {
-            const d = document.createElement('div');
-            d.className = 'msg '+type;
-            d.innerText = txt;
-            document.getElementById('chat-msgs').appendChild(d);
+
+        function stopDraw() { isDrawing = false; ctx.beginPath(); }
+        function clearWB() { 
+            ctx.clearRect(0,0,canvas.width, canvas.height); 
+            sendData({ type: 'draw', tool: 'clear' });
         }
-        function clearChat() { document.getElementById('chat-msgs').innerHTML = ''; }
+
+        function handleDraw(d) {
+            const w = canvas.width;
+            const h = canvas.height;
+            if(d.tool === 'clear') {
+                ctx.clearRect(0,0,w,h);
+            } else {
+                ctx.strokeStyle = (d.tool === 'eraser') ? '#ffffff' : d.color;
+                ctx.lineWidth = d.size;
+                ctx.beginPath();
+                ctx.moveTo(d.x0 * w, d.y0 * h);
+                ctx.lineTo(d.x1 * w, d.y1 * h);
+                ctx.stroke();
+            }
+        }
     </script>
 </body>
 </html>
