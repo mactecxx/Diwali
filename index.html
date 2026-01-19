@@ -2,612 +2,386 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Together - Ultimate</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* --- THEME ENGINE --- */
-        :root {
-            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            --glass: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.5);
-            --text: #333;
-            --primary: #6c5ce7;
-            --accent: #a29bfe;
-            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-        }
+        /* CSS RESET & LAYOUT */
+        :root { --bg: #f1f5f9; --dark: #0f172a; --primary: #0891b2; --green: #22c55e; --red: #ef4444; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
+        body { background: var(--bg); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
-        /* THEME PRESETS */
-        body.theme-neon { --bg-gradient: linear-gradient(to right, #0f2027, #203a43, #2c5364); --glass: rgba(0, 0, 0, 0.6); --glass-border: rgba(0, 255, 255, 0.2); --text: #00f2ff; --primary: #ff00ff; --accent: #00f2ff; }
-        body.theme-romantic { --bg-gradient: linear-gradient(to top, #fad0c4 0%, #ffd1ff 100%); --glass: rgba(255, 255, 255, 0.6); --glass-border: rgba(255, 200, 200, 0.5); --text: #884444; --primary: #ff7675; --accent: #fab1a0; }
-        body.theme-vibrant { --bg-gradient: linear-gradient(45deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); --glass: rgba(255,255,255,0.8); --text: #444; --primary: #ff6b6b; --accent: #feca57; }
-        body.theme-black { --bg-gradient: linear-gradient(to bottom, #000000, #434343); --glass: rgba(30,30,30,0.8); --glass-border: #444; --text: #e0e0e0; --primary: #ffffff; --accent: #555; }
-        body.theme-green { --bg-gradient: linear-gradient(120deg, #d4fc79 0%, #96e6a1 100%); --glass: rgba(255,255,255,0.6); --text: #2d3436; --primary: #00b894; --accent: #55efc4; }
-        body.theme-sky { --bg-gradient: linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%); --glass: rgba(255,255,255,0.7); --text: #2c3e50; --primary: #0984e3; --accent: #74b9ff; }
+        /* RIBBON */
+        .ribbon { height: 40px; background: var(--dark); color: white; display: flex; align-items: center; overflow: hidden; }
+        .ribbon-track { display: flex; gap: 40px; padding-left: 100%; animation: scroll 30s linear infinite; white-space: nowrap; }
+        .ribbon-item { font-size: 12px; opacity: 0.8; }
+        @keyframes scroll { 100% { transform: translateX(-100%); } }
 
-        * { box-sizing: border-box; tap-highlight-color: transparent; outline: none; }
-        body { margin: 0; font-family: 'Poppins', sans-serif; background: var(--bg-gradient); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; transition: background 0.5s ease; }
+        /* GRID */
+        .grid { display: grid; grid-template-columns: 280px 1fr 300px; height: calc(100vh - 40px); }
+        .col { background: white; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; }
+        .col-right { border-left: 1px solid #e2e8f0; padding: 20px; overflow-y: auto; }
 
-        /* --- GLASS MIXIN --- */
-        .glass-panel {
-            background: var(--glass);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--shadow);
-            border-radius: 16px;
-        }
+        /* QUEUE LIST */
+        .queue-item { padding: 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+        .queue-item:hover { background: #f8fafc; }
+        .queue-item.active { background: #ecfeff; border-left: 4px solid var(--primary); }
+        .badge { font-size: 10px; padding: 3px 6px; background: #e2e8f0; border-radius: 4px; }
+        .badge.call { background: var(--red); color: white; animation: blink 1s infinite; }
 
-        /* --- STARTUP MODAL --- */
-        #modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6);
-            z-index: 9999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);
-        }
-        .modal-content {
-            width: 90%; max-width: 400px; padding: 30px; text-align: center;
-        }
-        .modal-content h2 { margin-top: 0; color: var(--primary); }
-        .inp-modern {
-            width: 100%; padding: 12px 15px; margin: 10px 0; border: 2px solid transparent; border-radius: 10px;
-            background: rgba(255,255,255,0.9); font-size: 1rem; transition: 0.3s;
-        }
-        .inp-modern:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .btn-primary {
-            width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--primary);
-            color: white; font-weight: 600; font-size: 1rem; cursor: pointer; transition: 0.2s; margin-top: 10px;
-        }
-        .btn-primary:hover { transform: translateY(-2px); opacity: 0.9; }
+        /* CHAT */
+        .chat-header { padding: 15px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .chat-msgs { flex: 1; background: #f8fafc; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 70%; padding: 10px; border-radius: 8px; font-size: 14px; }
+        .msg.me { align-self: flex-end; background: var(--primary); color: white; }
+        .msg.client { align-self: flex-start; background: white; border: 1px solid #e2e8f0; }
 
-        /* --- APP HEADER --- */
-        #app-header {
-            height: 70px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px;
-            z-index: 100; flex-shrink: 0; margin: 10px 10px 0 10px;
-        }
-        .room-tag { font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
-        .room-tag i { color: var(--primary); }
-        
-        .action-bar { display: flex; gap: 10px; }
-        .icon-btn {
-            width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
-            background: rgba(255,255,255,0.3); color: var(--text); font-size: 1.1rem;
-            display: flex; justify-content: center; align-items: center; transition: 0.2s;
-        }
-        .icon-btn:hover { background: var(--primary); color: white; transform: rotate(10deg); }
-        .icon-btn.active { background: var(--primary); color: white; box-shadow: 0 0 10px var(--primary); }
+        /* INPUTS */
+        .inp { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 10px; font-size: 13px; }
+        .btn { padding: 8px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px; }
+        .btn-green { background: var(--green); }
+        .btn-red { background: var(--red); }
 
-        /* THEME SELECTOR */
-        #theme-dropdown {
-            position: absolute; top: 75px; right: 20px; width: 160px; display: none; flex-direction: column; gap: 5px; padding: 10px; z-index: 200;
-        }
-        .theme-item { padding: 8px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .theme-item:hover { background: rgba(255,255,255,0.4); }
+        /* MODALS */
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); z-index: 200; display: flex; justify-content: center; align-items: center; }
+        #incoming-modal { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 15px 30px; border-radius: 30px; display: none; align-items: center; gap: 15px; z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
 
-        /* --- MAIN STAGE (Youtube/Whiteboard) --- */
-        #main-stage {
-            flex: 1; margin: 10px; position: relative; overflow: hidden;
-            display: flex; justify-content: center; align-items: center;
-        }
-        /* Default Empty State */
-        #empty-state { text-align: center; opacity: 0.6; pointer-events: none; }
-        #empty-state i { font-size: 4rem; margin-bottom: 10px; color: var(--primary); }
-
-        /* YouTube */
-        #yt-wrapper { width: 100%; height: 100%; display: none; border-radius: 12px; overflow: hidden; position: relative; }
-        .yt-controls {
-            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 5px; z-index: 10; padding: 5px; border-radius: 30px;
-        }
-
-        /* Whiteboard */
-        #wb-wrapper { width: 100%; height: 100%; display: none; position: relative; border-radius: 12px; overflow: hidden; background: white; cursor: crosshair; }
-        #wb-toolbar {
-            position: absolute; top: 15px; left: 15px; padding: 10px; display: flex; flex-direction: column; gap: 10px; width: 50px; align-items: center; z-index: 20;
-        }
-        .paint-tool { width: 35px; height: 35px; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #555; background: #eee; border: 1px solid #ddd; transition: 0.2s; }
-        .paint-tool.active { background: var(--primary); color: white; border-color: var(--primary); }
-        .paint-tool:hover { transform: scale(1.1); }
-        .color-swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #ddd; cursor: pointer; padding: 0; }
-
-        /* --- FLOATING VIDEO DOCK --- */
-        #video-dock {
-            position: absolute; top: 90px; right: 20px; width: 180px; display: flex; flex-direction: column; gap: 15px; z-index: 50; pointer-events: none;
-        }
-        .vid-card {
-            width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; position: relative; overflow: hidden; 
-            pointer-events: auto; transition: height 0.3s, opacity 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.3);
-        }
-        .vid-card video { width: 100%; height: 100%; object-fit: cover; }
-        .vid-overlay {
-            position: absolute; bottom: 0; left: 0; width: 100%; padding: 5px 10px;
-            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-            color: white; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center;
-        }
-        .vid-btns i { cursor: pointer; margin-left: 8px; transition: 0.2s; }
-        .vid-btns i:hover { color: var(--primary); }
-        
-        /* Minimized State */
-        .vid-card.minimized { height: 32px; background: var(--glass); border-color: var(--primary); aspect-ratio: auto; }
-        .vid-card.minimized video { display: none; }
-        .vid-card.minimized .vid-overlay { background: transparent; color: var(--text); height: 100%; }
-
-        /* --- CHAT AREA (Permanent Half Screen) --- */
-        #chat-section {
-            height: 45vh; margin: 0 10px 10px 10px; display: flex; flex-direction: column; z-index: 40;
-            transition: height 0.3s ease;
-        }
-        #chat-section.collapsed { height: 50px; overflow: hidden; }
-
-        .chat-nav {
-            display: flex; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); align-items: center;
-        }
-        .nav-tabs { display: flex; gap: 20px; }
-        .tab-link { font-weight: 600; opacity: 0.5; cursor: pointer; position: relative; padding-bottom: 5px; }
-        .tab-link.active { opacity: 1; color: var(--primary); }
-        .tab-link.active::after { content:''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: var(--primary); border-radius: 2px; }
-
-        .chat-content { flex: 1; position: relative; overflow: hidden; }
-        .chat-box { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            display: none; flex-direction: column; 
-        }
-        .chat-box.active { display: flex; }
-
-        .msg-list { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
-        .msg-bubble { 
-            max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.4; word-wrap: break-word; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .msg-bubble.sent { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
-        .msg-bubble.received { align-self: flex-start; background: rgba(255,255,255,0.8); color: #333; border-bottom-left-radius: 2px; }
-        .timestamp { font-size: 0.65rem; opacity: 0.7; margin-top: 4px; display: block; text-align: right; }
-
-        .input-zone { padding: 10px; display: flex; gap: 10px; border-top: 1px solid rgba(0,0,0,0.05); }
-        .input-zone input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.1); outline: none; background: rgba(255,255,255,0.6); }
-        .send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--primary); color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; }
-
+        @keyframes blink { 50% { opacity: 0.5; } }
     </style>
 </head>
-<body class="theme-vibrant">
+<body>
 
-    <div id="modal-overlay">
-        <div class="modal-content glass-panel">
-            <h2><i class="fas fa-gem"></i> Together</h2>
-            <p>Your synchronized space.</p>
-            <input type="text" id="user-name" class="inp-modern" placeholder="Your Nickname">
-            <input type="text" id="room-name" class="inp-modern" value="Ourroom.netlify.app">
-            <button class="btn-primary" onclick="enterRoom()">Enter Room</button>
+    <div id="login-overlay">
+        <div style="background:white; padding:40px; border-radius:8px; width:300px; text-align:center;">
+            <h3>Staff Portal</h3><br>
+            <input id="e-email" class="inp" placeholder="Staff Email">
+            <input id="e-pass" type="password" class="inp" placeholder="Password">
+            <button class="btn" onclick="staffLogin()">Login</button>
         </div>
     </div>
 
-    <header id="app-header" class="glass-panel">
-        <div class="room-tag"><i class="fas fa-door-open"></i> <span id="display-room-name">OurRoom</span></div>
-        <div class="action-bar">
-            <button class="icon-btn" onclick="toggleThemeDrop()" title="Themes"><i class="fas fa-palette"></i></button>
-            <button class="icon-btn" onclick="activateStage('yt')" id="btn-yt" title="YouTube"><i class="fab fa-youtube"></i></button>
-            <button class="icon-btn" onclick="activateStage('wb')" id="btn-wb" title="Whiteboard"><i class="fas fa-paint-brush"></i></button>
-            <button class="icon-btn" onclick="shareScreen()" title="Screen Share"><i class="fas fa-desktop"></i></button>
-            <button class="icon-btn" onclick="inviteUser()" title="Copy Invite"><i class="fas fa-user-plus"></i></button>
-        </div>
-        <div id="theme-dropdown" class="glass-panel">
-            <div class="theme-item" onclick="setTheme('vibrant')"><span style="color:#ff6b6b">●</span> Vibrant</div>
-            <div class="theme-item" onclick="setTheme('neon')"><span style="color:#00f2ff">●</span> Neon</div>
-            <div class="theme-item" onclick="setTheme('romantic')"><span style="color:#ff7675">●</span> Romantic</div>
-            <div class="theme-item" onclick="setTheme('black')"><span style="color:#000">●</span> Dark</div>
-            <div class="theme-item" onclick="setTheme('green')"><span style="color:#00b894">●</span> Nature</div>
-            <div class="theme-item" onclick="setTheme('sky')"><span style="color:#0984e3">●</span> Sky Blue</div>
-        </div>
-    </header>
-
-    <div id="video-dock">
-        <div class="vid-card" id="card-local">
-            <video id="local-vid" autoplay muted playsinline></video>
-            <div class="vid-overlay">
-                <span>You</span>
-                <div class="vid-btns">
-                    <i class="fas fa-microphone" id="mute-icon" onclick="toggleMute()"></i>
-                    <i class="fas fa-minus" onclick="toggleMin('card-local')"></i>
-                </div>
-            </div>
-        </div>
-        <div class="vid-card" id="card-remote">
-            <video id="remote-vid" autoplay playsinline></video>
-            <div class="vid-overlay">
-                <span id="remote-name">Waiting...</span>
-                <div class="vid-btns">
-                    <i class="fas fa-minus" onclick="toggleMin('card-remote')"></i>
-                </div>
-            </div>
-        </div>
+    <div id="incoming-modal">
+        <div style="width:10px; height:10px; background:red; border-radius:50%;"></div>
+        <span id="inc-text">Incoming Call...</span>
+        <button class="btn-green" style="width:auto; padding:5px 15px;" onclick="answerIncoming()">Answer</button>
+        <button class="btn-red" style="width:auto; padding:5px 15px;" onclick="document.getElementById('incoming-modal').style.display='none'">Ignore</button>
     </div>
 
-    <div id="main-stage" class="glass-panel">
-        <div id="empty-state">
-            <i class="fas fa-couch"></i>
-            <h3>Welcome</h3>
-            <p>Select an activity from the top bar.</p>
-        </div>
-
-        <div id="yt-wrapper">
-            <div class="yt-controls glass-panel">
-                <input type="text" id="yt-input" placeholder="Video ID or Link" style="border:none; background:transparent; outline:none; color:var(--text);">
-                <button onclick="loadYT()" style="border:none; background:var(--primary); color:white; border-radius:50%; width:25px; height:25px; cursor:pointer;"><i class="fas fa-play" style="font-size:0.7rem;"></i></button>
-            </div>
-            <div id="player"></div>
-        </div>
-
-        <div id="wb-wrapper">
-            <canvas id="wb-canvas"></canvas>
-            <div id="wb-toolbar" class="glass-panel">
-                <div class="paint-tool active" onclick="setTool('pen', this)"><i class="fas fa-pen"></i></div>
-                <div class="paint-tool" onclick="setTool('eraser', this)"><i class="fas fa-eraser"></i></div>
-                <hr style="width:100%; border:0; border-top:1px solid #ccc;">
-                <div class="paint-tool" onclick="setTool('rect', this)"><i class="far fa-square"></i></div>
-                <div class="paint-tool" onclick="setTool('circle', this)"><i class="far fa-circle"></i></div>
-                <div class="paint-tool" onclick="setTool('tri', this)"><i class="fas fa-play" style="transform: rotate(-90deg); font-size: 0.8rem;"></i></div>
-                <hr style="width:100%; border:0; border-top:1px solid #ccc;">
-                <input type="color" class="color-swatch" id="wb-color" value="#000000">
-                <input type="range" id="wb-size" min="1" max="20" value="3" style="width:30px; transform: rotate(-90deg); margin: 15px 0;">
-                <div class="paint-tool" onclick="clearBoard()" style="color:red;"><i class="fas fa-trash"></i></div>
-            </div>
-        </div>
+    <div class="ribbon">
+        <div style="background:var(--red); height:100%; padding:0 15px; display:flex; align-items:center; font-weight:bold; font-size:12px;">DEADLINES</div>
+        <div class="ribbon-track" id="ribbon-track"></div>
     </div>
 
-    <div id="chat-section" class="glass-panel">
-        <div class="chat-nav">
-            <div class="nav-tabs">
-                <div class="tab-link active" onclick="openChat('live', this)">Room Chat</div>
-                <div class="tab-link" onclick="openChat('saved', this)">My Notes</div>
-            </div>
-            <i class="fas fa-chevron-down" onclick="document.getElementById('chat-section').classList.toggle('collapsed')" style="cursor:pointer; opacity:0.6;"></i>
-        </div>
-
-        <div class="chat-content">
-            <div class="chat-box active" id="box-live">
-                <div class="msg-list" id="list-live">
-                    <div style="text-align:center; opacity:0.5; font-size:0.8rem; margin-top:10px;">Messages here disappear when you leave.</div>
-                </div>
-                <div class="input-zone">
-                    <input type="text" id="inp-live" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMsg('live')">
-                    <button class="send-btn" onclick="sendMsg('live')"><i class="fas fa-paper-plane"></i></button>
-                </div>
-            </div>
-
-            <div class="chat-box" id="box-saved">
-                <div class="msg-list" id="list-saved"></div>
-                <div class="input-zone">
-                    <input type="text" id="inp-saved" placeholder="Save a note..." onkeypress="if(event.key==='Enter') sendMsg('saved')">
-                    <button class="send-btn" onclick="sendMsg('saved')"><i class="fas fa-save"></i></button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://www.youtube.com/iframe_api"></script>
-    <script>
-        // --- GLOBAL VARIABLES ---
-        const peer = new Peer();
-        let conn, call, localStream;
-        let myName = "User";
+    <div class="grid">
         
-        // --- INITIALIZATION ---
-        function enterRoom() {
-            const u = document.getElementById('user-name').value;
-            const r = document.getElementById('user-name').value; // Keeping room simple logic
-            if(u) myName = u;
-            document.getElementById('display-room-name').innerText = document.getElementById('room-name').value;
-            document.getElementById('modal-overlay').style.display = 'none';
+        <div class="col">
+            <div style="padding:15px; border-bottom:1px solid #e2e8f0;">
+                <input class="inp" placeholder="Search ID or Email..." onchange="searchClient(this.value)">
+                <div style="font-size:11px; color:#64748b; font-weight:bold;">WAITING QUEUE</div>
+            </div>
+            <div id="queue-list" style="overflow-y:auto; flex:1;"></div>
             
-            startPeer();
-            loadNotes();
+            <div style="padding:10px; background:#fffbeb; border-top:1px solid #e2e8f0; height:150px; overflow-y:auto;">
+                <div style="font-size:11px; color:#b45309; font-weight:bold; margin-bottom:5px;">MISSED CALL LOG</div>
+                <div id="missed-log"></div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="chat-header">
+                <span id="chat-title">Select a Chat</span>
+                <div id="chat-actions" style="display:none; gap:10px;">
+                    <span id="call-timer" style="font-family:monospace; font-size:14px; margin-right:10px;">00:00</span>
+                    <button class="btn-red" style="width:auto; padding:5px 10px;" onclick="endSession()">End Session</button>
+                </div>
+            </div>
+            <div class="chat-msgs" id="msg-area"></div>
+            <div style="padding:15px; border-top:1px solid #e2e8f0; display:flex; gap:10px;">
+                <input id="staff-input" class="inp" style="margin:0;" placeholder="Message..." onkeypress="if(event.key==='Enter') sendStaffMsg()">
+                <button class="btn" style="width:auto; padding:0 20px;" onclick="sendStaffMsg()">Send</button>
+            </div>
+        </div>
+
+        <div class="col-right">
+            <h4>Client Records</h4><br>
+            <label style="font-size:11px; font-weight:bold;">PASSPORT NUMBER</label>
+            <input id="rec-passport" class="inp">
+            
+            <label style="font-size:11px; font-weight:bold;">APPLICATION ID</label>
+            <input id="rec-appid" class="inp">
+            
+            <label style="font-size:11px; font-weight:bold;">NOTES</label>
+            <textarea id="rec-notes" class="inp" style="height:80px;"></textarea>
+            
+            <button class="btn-green" onclick="saveRecords()">Save Records</button>
+
+            <hr style="margin:20px 0; border:0; border-top:1px solid #e2e8f0;">
+
+            <h4>Set Deadline</h4><br>
+            <input id="task-note" class="inp" placeholder="Task Note">
+            <input id="task-date" type="date" class="inp">
+            <button class="btn" onclick="addTask()">Add to Ribbon</button>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script>
+        let currentEmp = null;
+        let activeChatId = null;
+        let incomingCallId = null; // Stored when modal pops up
+        
+        let pc = null;
+        let callTimerInt = null;
+        let callSeconds = 0;
+
+        // --- 1. AUTH ---
+        async function staffLogin() {
+            const email = document.getElementById('e-email').value;
+            const pass = document.getElementById('e-pass').value;
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+            if (error) return alert(error.message);
+            
+            currentEmp = data.user;
+            document.getElementById('login-overlay').style.display = 'none';
+            initDashboard();
         }
 
-        function startPeer() {
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-                localStream = stream;
-                document.getElementById('local-vid').srcObject = stream;
+        // --- 2. INIT & LISTENERS ---
+        function initDashboard() {
+            // Queue
+            supabase.channel('public:chats').on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, refreshQueue).subscribe();
+            refreshQueue();
 
-                peer.on('open', id => {
-                    const params = new URLSearchParams(window.location.search);
-                    const host = params.get('join');
-                    if (host) connectPeer(host);
-                });
+            // Ribbon
+            supabase.channel('public:tasks').on('postgres_changes', { event: '*', schema: 'public', table: 'global_tasks' }, refreshRibbon).subscribe();
+            refreshRibbon();
 
-                peer.on('call', incoming => {
-                    incoming.answer(stream);
-                    handleCall(incoming);
-                });
+            // Calls Monitoring
+            supabase.channel('public:calls').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'calls', filter: `status=eq.calling` }, handleIncomingCall).subscribe();
 
-                peer.on('connection', c => {
-                    conn = c;
-                    setupConn();
-                });
+            // Missed Calls
+            supabase.channel('public:missed').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'missed_calls' }, handleMissedLog).subscribe();
+            loadMissedLog();
+        }
+
+        async function refreshQueue() {
+            const { data } = await supabase.from('chats').select('*, profiles(name, six_digit_id)').in('status', ['queued', 'active']).order('last_activity', {ascending: false});
+            const list = document.getElementById('queue-list');
+            list.innerHTML = '';
+            
+            data.forEach(chat => {
+                const div = document.createElement('div');
+                div.className = `queue-item ${activeChatId === chat.id ? 'active' : ''}`;
+                div.innerHTML = `
+                    <div style="font-weight:bold;">${chat.profiles.name} <span style="font-weight:normal; font-size:11px;">(#${chat.profiles.six_digit_id})</span></div>
+                    <div style="font-size:11px; margin-top:4px;">
+                        <span class="badge" style="${chat.status === 'active' ? 'background:#e0f2fe; color:#0369a1' : 'background:#fef3c7; color:#b45309'}">${chat.status.toUpperCase()}</span>
+                    </div>
+                `;
+                div.onclick = () => pickUpChat(chat.id, chat.user_id, chat.profiles.six_digit_id);
+                list.appendChild(div);
             });
         }
 
-        function connectPeer(id) {
-            conn = peer.connect(id);
-            const outgoing = peer.call(id, localStream);
-            handleCall(outgoing);
-            setupConn();
-        }
-
-        function handleCall(c) {
-            call = c;
-            c.on('stream', s => document.getElementById('remote-vid').srcObject = s);
-        }
-
-        function setupConn() {
-            conn.on('open', () => {
-                send({ type: 'info', name: myName });
-                send({ type: 'theme', theme: document.body.className.replace('theme-', '') });
-            });
-            conn.on('data', d => handleData(d));
-        }
-
-        function send(data) { if (conn && conn.open) conn.send(data); }
-
-        function handleData(d) {
-            switch(d.type) {
-                case 'info': document.getElementById('remote-name').innerText = d.name; break;
-                case 'theme': setTheme(d.theme, false); break;
-                case 'chat': addBubble('live', d.msg, 'received'); break;
-                case 'stage': activateStage(d.mode, false); break;
-                case 'yt': handleYT(d); break;
-                case 'draw': handleDraw(d); break;
+        // --- 3. CHAT LOGIC ---
+        async function pickUpChat(chatId, userId, visualId) {
+            // Capacity Check
+            const { data: profile } = await supabase.from('profiles').select('active_chats').eq('id', currentEmp.id).single();
+            if ((profile.active_chats || 0) >= 2 && activeChatId !== chatId) {
+                return alert("Capacity Full (Max 2 Chats/Calls).");
             }
-        }
 
-        // --- UI LOGIC ---
-        function inviteUser() {
-            const url = window.location.href.split('?')[0] + '?join=' + peer.id;
-            navigator.clipboard.writeText(url);
-            alert("Invite Link Copied!");
-        }
+            activeChatId = chatId;
+            document.getElementById('chat-title').innerText = `Chatting with: #${visualId}`;
+            document.getElementById('chat-actions').style.display = 'flex';
 
-        function toggleMin(id) {
-            document.getElementById(id).classList.toggle('minimized');
-        }
-
-        function toggleThemeDrop() {
-            const el = document.getElementById('theme-dropdown');
-            el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
-        }
-
-        function setTheme(name, emit = true) {
-            document.body.className = 'theme-' + name;
-            document.getElementById('theme-dropdown').style.display = 'none';
-            if (emit) send({ type: 'theme', theme: name });
-        }
-
-        function toggleMute() {
-            const track = localStream.getAudioTracks()[0];
-            track.enabled = !track.enabled;
-            document.getElementById('mute-icon').className = track.enabled ? "fas fa-microphone" : "fas fa-microphone-slash";
-        }
-
-        async function shareScreen() {
-            try {
-                const s = await navigator.mediaDevices.getDisplayMedia({video:true});
-                const sender = call.peerConnection.getSenders().find(s => s.track.kind === 'video');
-                sender.replaceTrack(s.getVideoTracks()[0]);
-                document.getElementById('local-vid').srcObject = s;
-                s.getVideoTracks()[0].onended = () => { /* Logic to revert to cam could go here */ };
-            } catch(e) {}
-        }
-
-        // --- CHAT & NOTES ---
-        function openChat(mode, tab) {
-            document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active'));
-            if(tab) tab.classList.add('active');
-            
-            document.querySelectorAll('.chat-box').forEach(b => b.classList.remove('active'));
-            document.getElementById('box-' + mode).classList.add('active');
-        }
-
-        function sendMsg(mode) {
-            const inp = document.getElementById('inp-' + mode);
-            const txt = inp.value.trim();
-            if(!txt) return;
-
-            addBubble(mode, txt, 'sent');
-            inp.value = '';
-
-            if (mode === 'live') {
-                send({ type: 'chat', msg: txt });
-            } else {
-                saveToLocal(txt);
+            // Mark Active & Assign
+            if(profile.active_chats < 2) {
+                await supabase.from('chats').update({ status: 'active', assigned_to: currentEmp.id }).eq('id', chatId);
+                await supabase.from('profiles').update({ active_chats: (profile.active_chats || 0) + 1 }).eq('id', currentEmp.id);
             }
+
+            // Load Msgs
+            const { data: msgs } = await supabase.from('messages').select('*').eq('chat_id', chatId).order('created_at');
+            const box = document.getElementById('msg-area');
+            box.innerHTML = '';
+            msgs.forEach(renderMsg);
+
+            // Subscribe
+            supabase.channel(`chat:${chatId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` }, payload => renderMsg(payload.new)).subscribe();
+
+            // Load Secure Records
+            loadRecords(userId);
         }
 
-        function addBubble(mode, txt, type) {
+        function renderMsg(msg) {
+            const box = document.getElementById('msg-area');
             const div = document.createElement('div');
-            div.className = `msg-bubble ${type}`;
-            div.innerHTML = `${txt} <span class="timestamp">${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
-            const list = document.getElementById('list-' + mode);
-            list.appendChild(div);
-            list.scrollTop = list.scrollHeight;
+            div.className = `msg ${msg.sender_id === currentEmp.id ? 'me' : 'client'}`;
+            div.innerText = msg.text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
         }
 
-        function saveToLocal(txt) {
-            const notes = JSON.parse(localStorage.getItem('room_notes') || '[]');
-            notes.push({ txt, date: new Date().toLocaleString() });
-            localStorage.setItem('room_notes', JSON.stringify(notes));
+        async function sendStaffMsg() {
+            const txt = document.getElementById('staff-input').value;
+            if(!txt || !activeChatId) return;
+            document.getElementById('staff-input').value = '';
+            await supabase.from('messages').insert({ chat_id: activeChatId, sender_id: currentEmp.id, text: txt });
         }
 
-        function loadNotes() {
-            const notes = JSON.parse(localStorage.getItem('room_notes') || '[]');
-            notes.forEach(n => addBubble('saved', n.txt, 'received')); // 'received' style for saved notes
-        }
-
-        // --- STAGE CONTROLLER ---
-        function activateStage(mode, emit = true) {
-            document.getElementById('empty-state').style.display = 'none';
-            document.getElementById('yt-wrapper').style.display = (mode === 'yt') ? 'block' : 'none';
-            document.getElementById('wb-wrapper').style.display = (mode === 'wb') ? 'block' : 'none';
+        async function endSession() {
+            if(!confirm("End this session?")) return;
+            await supabase.from('chats').update({ status: 'closed', assigned_to: null }).eq('id', activeChatId);
             
-            document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('active'));
-            if(mode === 'yt') document.getElementById('btn-yt').classList.add('active');
-            if(mode === 'wb') {
-                document.getElementById('btn-wb').classList.add('active');
-                resizeWB();
-            }
-
-            if(emit) send({ type: 'stage', mode: mode });
+            // Decrement active count
+            const { data: profile } = await supabase.from('profiles').select('active_chats').eq('id', currentEmp.id).single();
+            await supabase.from('profiles').update({ active_chats: Math.max(0, (profile.active_chats || 1) - 1) }).eq('id', currentEmp.id);
+            
+            activeChatId = null;
+            document.getElementById('msg-area').innerHTML = '';
+            document.getElementById('chat-title').innerText = 'Select a Chat';
+            refreshQueue();
         }
 
-        // --- YOUTUBE LOGIC ---
-        let player;
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', {
-                height: '100%', width: '100%',
-                playerVars: { 'autoplay': 0 },
-                events: { 'onStateChange': onPlayerStateChange }
+        // --- 4. CALL LOGIC (ANSWERING) ---
+        async function handleIncomingCall(payload) {
+            const call = payload.new;
+            // Get Chat info to see if assigned to me
+            const { data: chat } = await supabase.from('chats').select('assigned_to').eq('id', call.chat_id).single();
+            
+            // If assigned to me OR unassigned (I can pick up)
+            if (chat.assigned_to === currentEmp.id || !chat.assigned_to) {
+                incomingCallId = call.id; // Calls table UUID
+                document.getElementById('incoming-modal').style.display = 'flex';
+                document.getElementById('inc-text').innerText = chat.assigned_to ? "Client calling you!" : "New Priority Call";
+                
+                // If I'm not on this chat, load it
+                if(activeChatId !== call.chat_id) {
+                     // Get user details for pickup
+                     const {data: c} = await supabase.from('chats').select('user_id, profiles(six_digit_id)').eq('id', call.chat_id).single();
+                     pickUpChat(call.chat_id, c.user_id, c.profiles.six_digit_id);
+                }
+            }
+        }
+
+        async function answerIncoming() {
+            document.getElementById('incoming-modal').style.display = 'none';
+            
+            const { data: call } = await supabase.from('calls').select('*').eq('id', incomingCallId).single();
+            
+            pc = new RTCPeerConnection(rtcConfig);
+            
+            // Send Candidates
+            pc.onicecandidate = async e => {
+                if(e.candidate) await supabase.from('ice_candidates').insert({ call_id: incomingCallId, candidate: e.candidate, sender_role: 'callee' });
+            };
+
+            // Play Audio
+            const remoteAudio = new Audio();
+            pc.ontrack = e => { remoteAudio.srcObject = e.streams[0]; remoteAudio.play(); };
+
+            await pc.setRemoteDescription(new RTCSessionDescription(call.offer));
+
+            // Get Mic
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            // Update DB
+            await supabase.from('calls').update({ status: 'connected', answer: answer }).eq('id', incomingCallId);
+
+            // Listen for Candidates from Caller
+            supabase.channel(`ice:${incomingCallId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ice_candidates', filter: `call_id=eq.${incomingCallId}` }, payload => {
+                if(payload.new.sender_role === 'caller') pc.addIceCandidate(new RTCIceCandidate(payload.new.candidate));
+            }).subscribe();
+
+            startTimer();
+        }
+
+        function startTimer() {
+            callSeconds = 0;
+            callTimerInt = setInterval(() => {
+                callSeconds++;
+                const mins = Math.floor(callSeconds / 60).toString().padStart(2, '0');
+                const secs = (callSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('call-timer').innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        // --- 5. DETAILS & RIBBON ---
+        async function loadRecords(userId) {
+            const { data } = await supabase.from('secure_records').select('*').eq('client_uid', userId).single();
+            document.getElementById('rec-passport').value = data?.passport_number || '';
+            document.getElementById('rec-appid').value = data?.application_id || '';
+            document.getElementById('rec-notes').value = data?.notes || '';
+        }
+
+        async function saveRecords() {
+            if(!activeChatId) return;
+            const { data: chat } = await supabase.from('chats').select('user_id').eq('id', activeChatId).single();
+            
+            await supabase.from('secure_records').upsert({
+                client_uid: chat.user_id,
+                passport_number: document.getElementById('rec-passport').value,
+                application_id: document.getElementById('rec-appid').value,
+                notes: document.getElementById('rec-notes').value,
+                updated_by: currentEmp.email
+            });
+            alert("Saved.");
+        }
+
+        async function refreshRibbon() {
+            const { data } = await supabase.from('global_tasks').select('*').eq('status', 'pending');
+            const track = document.getElementById('ribbon-track');
+            track.innerHTML = '';
+            data.forEach(t => {
+                const span = document.createElement('span');
+                span.className = 'ribbon-item';
+                span.innerText = `${t.note} (${new Date(t.deadline).toLocaleDateString()}) | `;
+                track.appendChild(span);
             });
         }
-        function loadYT() {
-            const val = document.getElementById('yt-input').value;
-            const id = val.split('v=')[1] || val.split('/').pop();
-            if(id && player) {
-                player.loadVideoById(id);
-                send({ type: 'yt', op: 'load', id: id });
-            }
-        }
-        function onPlayerStateChange(e) {
-            if(e.data === 1) send({ type: 'yt', op: 'play', time: player.getCurrentTime() });
-            if(e.data === 2) send({ type: 'yt', op: 'pause' });
-        }
-        function handleYT(d) {
-            if(!player || !player.loadVideoById) return;
-            if(d.op === 'load') player.loadVideoById(d.id);
-            if(d.op === 'play') {
-                if(Math.abs(player.getCurrentTime() - d.time) > 1) player.seekTo(d.time);
-                player.playVideo();
-            }
-            if(d.op === 'pause') player.pauseVideo();
-        }
-
-        // --- ADVANCED WHITEBOARD LOGIC ---
-        const cvs = document.getElementById('wb-canvas');
-        const ctx = cvs.getContext('2d');
-        let painting = false;
-        let tool = 'pen'; 
-        let startX, startY, snapshot;
-
-        function resizeWB() {
-            cvs.width = cvs.parentElement.offsetWidth;
-            cvs.height = cvs.parentElement.offsetHeight;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-        }
-        window.addEventListener('resize', () => { if(document.getElementById('wb-wrapper').style.display === 'block') resizeWB(); });
-
-        function setTool(t, el) {
-            tool = t;
-            document.querySelectorAll('.paint-tool').forEach(e => e.classList.remove('active'));
-            el.classList.add('active');
-        }
-
-        function clearBoard() {
-            ctx.clearRect(0,0,cvs.width,cvs.height);
-            send({type:'draw', op:'clear'});
-        }
-
-        // Mouse Events
-        cvs.addEventListener('mousedown', startDraw);
-        cvs.addEventListener('mousemove', draw);
-        cvs.addEventListener('mouseup', endDraw);
-        // Touch Events
-        cvs.addEventListener('touchstart', e => {
-            const r = cvs.getBoundingClientRect();
-            startDraw({offsetX: e.touches[0].clientX - r.left, offsetY: e.touches[0].clientY - r.top});
-        });
-        cvs.addEventListener('touchmove', e => {
-            e.preventDefault();
-            const r = cvs.getBoundingClientRect();
-            draw({offsetX: e.touches[0].clientX - r.left, offsetY: e.touches[0].clientY - r.top});
-        });
-        cvs.addEventListener('touchend', endDraw);
-
-        function startDraw(e) {
-            painting = true;
-            startX = e.offsetX; startY = e.offsetY;
-            ctx.beginPath();
-            // Save state for shapes
-            snapshot = ctx.getImageData(0,0,cvs.width, cvs.height);
-        }
-
-        function draw(e) {
-            if(!painting) return;
-            const color = document.getElementById('wb-color').value;
-            const size = document.getElementById('wb-size').value;
-
-            if(tool === 'pen' || tool === 'eraser') {
-                ctx.lineWidth = size;
-                ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color;
-                ctx.lineTo(e.offsetX, e.offsetY);
-                ctx.stroke();
-                // Send stream of coordinates for pen
-                send({type:'draw', op:'line', x0:startX, y0:startY, x1:e.offsetX, y1:e.offsetY, color:ctx.strokeStyle, size:size});
-                startX = e.offsetX; startY = e.offsetY;
-            } else {
-                // Shapes: Restore old image, draw new shape preview
-                ctx.putImageData(snapshot, 0, 0);
-                drawShape(tool, startX, startY, e.offsetX, e.offsetY, color, size);
+        
+        async function addTask() {
+            const note = document.getElementById('task-note').value;
+            const date = document.getElementById('task-date').value;
+            if(note && date) {
+                // Determine Client ID from active chat
+                const { data: chat } = await supabase.from('chats').select('user_id').eq('id', activeChatId).single();
+                await supabase.from('global_tasks').insert({ client_uid: chat.user_id, note, deadline: date });
+                alert("Task Added");
             }
         }
 
-        function endDraw(e) {
-            if(!painting) return;
-            painting = false;
-            if(tool !== 'pen' && tool !== 'eraser') {
-                // Finalize shape send
-                const color = document.getElementById('wb-color').value;
-                const size = document.getElementById('wb-size').value;
-                send({type:'draw', op:'shape', tool:tool, x0:startX, y0:startY, x1:e.offsetX, y1:e.offsetY, color:color, size:size});
-            }
-            ctx.beginPath();
+        // --- 6. SEARCH & MISSED ---
+        async function searchClient(query) {
+            // Find user by email or ID
+            const { data } = await supabase.from('profiles').select('id').or(`email.eq.${query},six_digit_id.eq.${query}`).single();
+            if(data) {
+                // Find active chat for them
+                const { data: chat } = await supabase.from('chats').select('*, profiles(six_digit_id)').eq('user_id', data.id).single();
+                if(chat) pickUpChat(chat.id, data.id, chat.profiles.six_digit_id);
+                else alert("No active chat for this user.");
+            } else alert("Not found.");
         }
 
-        function drawShape(t, x1, y1, x2, y2, c, s) {
-            ctx.beginPath();
-            ctx.lineWidth = s;
-            ctx.strokeStyle = c;
-            const w = x2 - x1;
-            const h = y2 - y1;
-            
-            if(t === 'rect') ctx.strokeRect(x1, y1, w, h);
-            else if(t === 'circle') {
-                ctx.beginPath();
-                let r = Math.sqrt(w*w + h*h);
-                ctx.arc(x1, y1, r, 0, 2 * Math.PI);
-                ctx.stroke();
-            } else if(t === 'tri') {
-                ctx.beginPath();
-                ctx.moveTo(x1 + w/2, y1);
-                ctx.lineTo(x1, y1 + h);
-                ctx.lineTo(x1 + w, y1 + h);
-                ctx.closePath();
-                ctx.stroke();
-            }
+        async function loadMissedLog() {
+            const { data } = await supabase.from('missed_calls').select('*, profiles(name)').eq('status', 'new').order('timestamp', {ascending: false});
+            const div = document.getElementById('missed-log');
+            div.innerHTML = '';
+            data.forEach(m => {
+                const item = document.createElement('div');
+                item.style.padding = "5px"; item.style.borderBottom = "1px solid #ddd"; item.style.fontSize="11px";
+                item.innerHTML = `<b>${m.profiles.name}</b>: ${m.client_message} <br><span style="color:#666">${new Date(m.timestamp).toLocaleTimeString()}</span>`;
+                div.appendChild(item);
+            });
         }
+        
+        function handleMissedLog(payload) { loadMissedLog(); }
 
-        function handleDraw(d) {
-            const w = cvs.width; const h = cvs.height; // Logic simplifier: using absolute coords for now for reliability
-            // In production, percentage based coords are better, but for single-file stability:
-            if(d.op === 'clear') ctx.clearRect(0,0,cvs.width,cvs.height);
-            else if(d.op === 'line') {
-                ctx.lineWidth = d.size;
-                ctx.strokeStyle = d.color;
-                ctx.beginPath();
-                ctx.moveTo(d.x0, d.y0);
-                ctx.lineTo(d.x1, d.y1);
-                ctx.stroke();
-            } else if(d.op === 'shape') {
-                drawShape(d.tool, d.x0, d.y0, d.x1, d.y1, d.color, d.size);
-            }
-        }
     </script>
 </body>
 </html>
